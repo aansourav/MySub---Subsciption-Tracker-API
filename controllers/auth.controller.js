@@ -35,14 +35,16 @@ export const signUp = async (req, res, next) => {
         await session.endSession();
 
         // Get user without password after transaction is committed
-        const user = await User.findById(newUsers[0]._id).select("-password");
+        const newUser = await User.findById(newUsers[0]._id).select(
+            "-password"
+        );
 
         res.status(201).json({
             success: true,
             message: "User created successfully",
             data: {
                 token,
-                user,
+                user: newUser,
             },
         });
     } catch (error) {
