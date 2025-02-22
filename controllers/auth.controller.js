@@ -1,8 +1,8 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/env";
-import User from "../model/user.model";
+import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/env.js";
+import User from "../model/user.model.js";
 
 export const signUp = async (req, res, next) => {
     const session = await mongoose.startSession();
@@ -22,9 +22,10 @@ export const signUp = async (req, res, next) => {
         // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const newUsers = new User([{ name, email, password: hashedPassword }], {
-            session,
-        });
+        const newUsers = await User.create(
+            [{ name, email, password: hashedPassword }],
+            { session }
+        );
 
         const token = jwt.sign({ userId: newUsers[0]._id }, JWT_SECRET, {
             expiresIn: JWT_EXPIRES_IN,
@@ -33,12 +34,15 @@ export const signUp = async (req, res, next) => {
         await session.commitTransaction();
         await session.endSession();
 
+        // Get user without password after transaction is committed
+        const user = await User.findById(newUsers[0]._id).select("-password");
+
         res.status(201).json({
             success: true,
             message: "User created successfully",
             data: {
                 token,
-                user: newUsers[0],
+                user,
             },
         });
     } catch (error) {
