@@ -55,9 +55,10 @@ export const signUp = async (req, res, next) => {
 };
 
 export const signIn = async (req, res, next) => {
+    const { email, password } = req.body;
     try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
+        // Explicitly select the password field
+        const user = await User.findOne({ email }).select("+password");
         if (!user) {
             const error = new Error("User not found");
             error.statusCode = 404;
@@ -70,10 +71,25 @@ export const signIn = async (req, res, next) => {
             error.statusCode = 401;
             throw error;
         }
-        
+
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+            expiresIn: JWT_EXPIRES_IN,
+        });
+
+        // Remove password from response
+        const userWithoutPassword = user.toObject();
+        delete userWithoutPassword.password;
+
+        res.status(200).json({
+            success: true,
+            message: "User signed in successfully",
+            data: {
+                token,
+                user: userWithoutPassword,
+            },
+        });
     } catch (error) {
         next(error);
-        
     }
 };
 
