@@ -9,6 +9,9 @@ import userRouter from "./routes/user.route.js";
 
 const app = express();
 
+// Connect to database first
+await connectDB();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -25,7 +28,6 @@ app.get("/", (req, res) => {
 
 app.listen(PORT, async () => {
     console.log(`MySub API is running on http://localhost:${PORT}`);
-    await connectDB();
 });
 
 export default app;
