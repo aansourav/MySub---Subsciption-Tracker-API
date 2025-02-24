@@ -36,3 +36,26 @@ export const getUserSubscriptions = async (req, res, next) => {
         next(error);
     }
 };
+
+export const updateSubscription = async (req, res, next) => {
+    try {
+        // if (req.user.id !== req.params.id) {
+        //     const error = "You are not the owner of this subscription";
+        //     error.status = 401;
+        //     throw new Error(error);
+        // }
+
+        const subscription = await Subscription.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+        res.status(200).json({
+            success: true,
+            message: "Subscription updated successfully",
+            data: subscription,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
