@@ -8,15 +8,33 @@ export const sendReminders = serve(async (context) => {
     const REMINDER_DAYS = [7, 3, 1];
 
     const { subscriptionId } = context.requestPayload;
-    const subscription = await fetchSubscription(context, subscriptionId);
 
-    if (!subscription || subscription.status !== "active") return;
+    if (!subscriptionId || typeof subscriptionId !== "string") {
+        console.error("Invalid subscriptionId:", subscriptionId);
+        return;
+    }
+
+    let subscription;
+    try {
+        subscription = await fetchSubscription(context, subscriptionId);
+    } catch (error) {
+        console.error("Error fetching subscription:", error);
+        return;
+    }
+
+    if (!subscription || subscription.status !== "active") {
+        console.log(
+            `Subscription ${subscriptionId} is not active or not found`
+        );
+        return;
+    }
 
     const renewalDate = dayjs(subscription.renewalDate);
+    const now = dayjs();
 
-    if (renewalDate.isBefore(dayjs())) {
+    if (renewalDate.isBefore(now)) {
         console.log(
-            `Renewal date has passed for this subscription ${subscriptionId}. Stopping workflow `
+            `Renewal date has passed for subscription ${subscriptionId}. Stopping workflow`
         );
         return;
     }
@@ -24,7 +42,29 @@ export const sendReminders = serve(async (context) => {
     for (const daysBefore of REMINDER_DAYS) {
         const reminderDate = renewalDate.subtract(daysBefore, "days");
 
-        if (reminderDate.isAfter(dayjs())) {
+        if (reminderDate.isBefore(now)) {
+            console.log(
+                `Skipping ${daysBefore} day reminder as it's already past`
+            );
+            continue;
+        }
+
+        await sleepUntilReminder(
+            context,
+            `Reminder - ${daysBefore} days before renewal`,
+            reminderDate
+        );
+
+        try {
+            await triggerReminder(
+                context,
+                `Reminder - ${daysBefore} days before renewal`
+            );
+        } catch (error) {
+            console.error(
+                `Error triggering ${daysBefore} day reminder:`,
+                error
+            );
         }
     }
 });
@@ -41,4 +81,10 @@ const fetchSubscription = async (context, subscriptionId) => {
 const sleepUntilReminder = async (context, label, date) => {
     console.log(`Sleeping until ${label} reminder at ${date}`);
     await context.sleepUntil(label, date.toDate());
+};
+
+const triggerReminder = async (context, label) => {
+    return await context.run(label, () => {
+        console.log(`Triggering ${label} reminder`);
+    });
 };
